@@ -10,17 +10,11 @@ const HeroSection = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Image */}
       <div className="absolute inset-0">
-        <img
-          src={heroBg}
-          alt="Tropical landscape"
-          className="w-full h-full object-cover"
-        />
+        <img src={heroBg} alt="Scenic travel landscape" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-foreground/50" />
       </div>
 
-      {/* Content */}
       <div className="relative z-10 text-center px-4 max-w-3xl mx-auto">
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
@@ -36,7 +30,7 @@ const HeroSection = () => {
           transition={{ duration: 0.7, delay: 0.2 }}
           className="text-lg md:text-xl text-primary-foreground/80 mb-8 max-w-xl mx-auto"
         >
-          Personalized, climate-smart itineraries in seconds.
+          Climate Smart, Instantly.
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
