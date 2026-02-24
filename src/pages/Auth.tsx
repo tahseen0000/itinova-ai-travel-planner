@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/firebase";
+import { updateProfile } from "firebase/auth";
 
 const Auth = () => {
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
@@ -24,43 +27,52 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
+    // FORGOT PASSWORD (Firebase)
     if (mode === "forgot") {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      setLoading(false);
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-      } else {
+      try {
+        await sendPasswordResetEmail(auth, email);
         toast({ title: "Check your email", description: "A password reset link has been sent." });
         setMode("login");
+      } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } finally {
+        setLoading(false);
       }
       return;
     }
 
+    // SIGN UP
     if (mode === "signup") {
       if (!displayName.trim()) {
         toast({ title: "Name required", description: "Please enter your name.", variant: "destructive" });
         setLoading(false);
         return;
       }
-      const { error } = await signUp(email, password, displayName);
-      setLoading(false);
-      if (error) {
-        toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
-      } else {
+      try {
+        // Create user with email and password
+        const userCredential = await signUp(email, password);
+        // Update profile with display name
+        if (userCredential.user) {
+          await updateProfile(userCredential.user, { displayName });
+        }
         toast({ title: "Check your email", description: "Please verify your email to continue." });
         setMode("login");
+      } catch (error: any) {
+        toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
+      } finally {
+        setLoading(false);
       }
-    } else {
-      const { error } = await signIn(email, password);
+      return;
+    }
+
+    // SIGN IN
+    try {
+      await signIn(email, password);
+      navigate(from, { replace: true });
+    } catch (error: any) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+    } finally {
       setLoading(false);
-      if (error) {
-        toast({ title: "Login failed", description: error.message, variant: "destructive" });
-      } else {
-        navigate(from, { replace: true });
-      }
     }
   };
 

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Leaf, Sun, CloudRain, Snowflake, Cloud, Gem, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LocationSelector } from "@/components/LocationSelector";
 import {
   Select,
   SelectContent,
@@ -27,32 +28,57 @@ const weatherOptions = [
 ];
 
 export interface TripFormData {
-  destination: string;
+  countryId: string;
+  countryName: string;
+  city: string;
   days: number;
   persons: number;
   budget: string;
   interests: string[];
+  foodPreference: 'any' | 'veg' | 'nonveg' | 'vegan';
   weather: string;
-  ecoMode: boolean;
   pace: string;
+  ecoMode: boolean;
   hiddenGems: boolean;
 }
 
 interface TripPlannerFormProps {
   onSubmit: (data: TripFormData) => void;
   isLoading: boolean;
+  initialData?: TripFormData; // <-- new prop
 }
 
-const TripPlannerForm = ({ onSubmit, isLoading }: TripPlannerFormProps) => {
-  const [destination, setDestination] = useState("");
+const TripPlannerForm = ({ onSubmit, isLoading, initialData }: TripPlannerFormProps) => {
+  const [countryId, setCountryId] = useState("");
+  const [countryName, setCountryName] = useState("");
+  const [city, setCity] = useState("");
   const [days, setDays] = useState(3);
   const [persons, setPersons] = useState(1);
   const [budget, setBudget] = useState("Medium");
   const [interests, setInterests] = useState<string[]>([]);
+  const [foodPreference, setFoodPreference] = useState<'any' | 'veg' | 'nonveg' | 'vegan'>('any');
   const [weather, setWeather] = useState("any");
-  const [ecoMode, setEcoMode] = useState(false);
   const [pace, setPace] = useState("moderate");
+  const [ecoMode, setEcoMode] = useState(false);
   const [hiddenGems, setHiddenGems] = useState(false);
+
+  // Pre‑fill form when initialData changes (e.g., after chatbot)
+  useEffect(() => {
+    if (initialData) {
+      setCountryId(initialData.countryId || "");
+      setCountryName(initialData.countryName || "");
+      setCity(initialData.city || "");
+      setDays(initialData.days || 3);
+      setPersons(initialData.persons || 1);
+      setBudget(initialData.budget || "Medium");
+      setInterests(initialData.interests || []);
+      setFoodPreference(initialData.foodPreference || "any");
+      setWeather(initialData.weather || "any");
+      setPace(initialData.pace || "moderate");
+      setEcoMode(initialData.ecoMode || false);
+      setHiddenGems(initialData.hiddenGems || false);
+    }
+  }, [initialData]);
 
   const toggleInterest = (interest: string) => {
     setInterests((prev) =>
@@ -60,10 +86,46 @@ const TripPlannerForm = ({ onSubmit, isLoading }: TripPlannerFormProps) => {
     );
   };
 
+  const handleCountryChange = (id: string, name: string) => {
+    setCountryId(id);
+    setCountryName(name);
+    setCity("");
+  };
+
+  const handleCityChange = (city: string) => {
+    setCity(city);
+  };
+
+  const getBudgetRange = () => {
+    const ranges = {
+      Low: { min: 50, max: 100 },
+      Medium: { min: 100, max: 200 },
+      High: { min: 200, max: 350 },
+      Luxury: { min: 350, max: 500 },
+    };
+    const range = ranges[budget as keyof typeof ranges] || ranges.Medium;
+    const minTotal = range.min * days * persons;
+    const maxTotal = range.max * days * persons;
+    return { min: minTotal, max: maxTotal };
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!destination.trim()) return;
-    onSubmit({ destination, days, persons, budget, interests, weather, ecoMode, pace, hiddenGems });
+    if (!countryId || !city) return;
+    onSubmit({
+      countryId,
+      countryName,
+      city,
+      days,
+      persons,
+      budget,
+      interests,
+      foodPreference,
+      weather,
+      pace,
+      ecoMode,
+      hiddenGems,
+    });
   };
 
   return (
@@ -79,19 +141,14 @@ const TripPlannerForm = ({ onSubmit, isLoading }: TripPlannerFormProps) => {
               Plan Your Trip
             </h2>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Destination */}
-              <div className="space-y-2">
-                <Label htmlFor="destination">Destination</Label>
-                <Input
-                  id="destination"
-                  placeholder="e.g., Paris, Tokyo, Bali..."
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  required
-                />
-              </div>
+              <LocationSelector
+                onCountryChange={handleCountryChange}
+                onCityChange={handleCityChange}
+                selectedCountryId={countryId}
+                selectedCity={city}
+                className="grid-cols-2"
+              />
 
-              {/* Days, Persons & Budget row */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="days">Days</Label>
@@ -131,7 +188,13 @@ const TripPlannerForm = ({ onSubmit, isLoading }: TripPlannerFormProps) => {
                 </div>
               </div>
 
-              {/* Interests */}
+              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                <span className="font-medium">Estimated total:</span> ${getBudgetRange().min} – ${getBudgetRange().max}
+                <span className="text-xs ml-2">
+                  (based on {days} days, {persons} {persons === 1 ? 'person' : 'persons'})
+                </span>
+              </div>
+
               <div className="space-y-2">
                 <Label>Interests</Label>
                 <div className="flex flex-wrap gap-2">
@@ -152,7 +215,21 @@ const TripPlannerForm = ({ onSubmit, isLoading }: TripPlannerFormProps) => {
                 </div>
               </div>
 
-              {/* Weather */}
+              <div className="space-y-2">
+                <Label htmlFor="food-preference">Food Preference</Label>
+                <select
+                  id="food-preference"
+                  value={foodPreference}
+                  onChange={(e) => setFoodPreference(e.target.value as any)}
+                  className="w-full p-2 border rounded bg-background"
+                >
+                  <option value="any">Any</option>
+                  <option value="veg">Vegetarian</option>
+                  <option value="nonveg">Non‑Vegetarian</option>
+                  <option value="vegan">Vegan</option>
+                </select>
+              </div>
+
               <div className="space-y-2">
                 <Label>Weather Preference</Label>
                 <div className="flex flex-wrap gap-2">
@@ -173,7 +250,6 @@ const TripPlannerForm = ({ onSubmit, isLoading }: TripPlannerFormProps) => {
                 </div>
               </div>
 
-              {/* Pace */}
               <div className="space-y-2">
                 <Label>Pace</Label>
                 <div className="flex gap-2">
@@ -194,7 +270,6 @@ const TripPlannerForm = ({ onSubmit, isLoading }: TripPlannerFormProps) => {
                 </div>
               </div>
 
-              {/* Toggles */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between py-2">
                   <div className="flex items-center gap-2">
